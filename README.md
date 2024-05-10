@@ -120,3 +120,149 @@ fn main() {
 }
 ```
 
+## 변수와 가변성
+
+* 러스트에서 변수는 기본적으로 불변(immutable)이다.
+  - 불변인 변수는 값이 할당되면 그 값을 변경할 수 없다.
+  - ```rust
+    let x = 5;
+    x = 6;    // 컴파일 오류 발생
+    ```
+  - ```rust
+    let mut x = 5;    // mut 키워드를 붙이면 가변(mutable) 변수가 되므로 컴파일 오류가 발생하지 않는다.
+    x = 6;
+    ```
+
+* 상수는 `mut` 키워드를 사용할 수 없으며 항상 불변이다.
+  - `const` 키워드를 사용해야 하며 반드시 타입을 명시해야 한다.
+  - 상수의 스코프는 전역(global)입니다.
+  - ```rust
+    const THREE_HOURS_IN_SECONDS: u32 = 60 * 60 * 3;
+    ```
+
+* 섀도잉 (shadowing)
+  - `let` 키워드로 기존과 동일한 변수를 재선언하면, 기존 변수는 가려집니다(shadowed).
+  - ```rust
+    fn main() {
+        let x = 5;
+
+        let x = x + 1;
+        {
+            let x = x * 2;
+            println!("The value of x in the inner scope is: {x}");
+        }
+        println!("The value of x is: {x}");
+    }
+    ```
+  - 결과는 다음과 같습니다.
+    ```
+    The value of x in the inner scope is: 12
+    The value of x is: 6
+    ```
+  - `mut`과 `let`의 차이점: let 키워드는 새로운 변수를 만들기 때문에 다른 타입의 값을 저장할 수 있다.
+ 
+## 데이터 타입
+
+* 스칼라 타입 (scalar type)
+  - 정수 (signed, unsigned)
+    * signed 정수: i8, i16, i32, i64, i128, isize (여기서 isize 타입은 아키텍처를 따름, 가령 32/64비트)
+    * unsigned 정수: u8, u16, u32, u64, u128, usize (여기서 usize 타입은 아키텍처를 따름, 가령 32/64비트)
+    * 10, 16, 8, 2진수 표현이 가능하며 _ 문자로 자릿수 구분이 가능함: Decimal (98_222), Hex (0xff), Octal (0o77), Binary (0b1111_0000), Byte (b'A')-u8 전용
+  - 부동 소수점 숫자
+    * f32, f64: 이것은 마치 C언어의 float, double과 같다.
+  - 불리언 (bool)
+  - 문자 (char): ''로 감싼다. 4바이트 크기, 유니코드 스칼라 값을 표현한다. (반면 문자열은 ""로 감싼다)
+
+* 복합 타입 (compound type)
+  - 튜플: ()로 감싼다. 각 요소는 타입이 다를 수 있다. 한 번 선언되면 크기 변경이 안 된다.
+    * 튜플의 각 요소에 접근하려면 .를 써야 한다.
+    * ```rust
+      let tup: (i32, f64, u8) = (500, 6.4, 1);
+      let five_hundred = x.0;
+      ```
+  - 배열: []로 감싼다. 튜플과 달리 모든 요소는 타입이 같아야 한다. 한 번 선언되면 크기 변경이 안 된다.
+    * 배열의 각 요소에 접근하려면 [n]을 써야 한다. 여기서 n은 인덱스 값이며 0부터 시작한다.
+    * ```rust
+      let a: [i32; 5] = [1, 2, 3, 4, 5];    // 타입은 i32, 개수는 5개
+      let b = [3; 5];    // 개수는 5개이며 모두 3으로 채움
+      ```
+
+## 함수
+
+* `fn` 키워드로 시작한다.
+  - 모든 글자를 소문자로 쓰고, 단어는 _로 구분한다.
+  - `fn` 키워드 이후에는 함수 이름과 괄호를 붙여서 함수를 정의한다.
+  - 함수 본문은 {}로 감싼다.
+  - 파라미터는 다음과 같이 () 안에 넣는다. 파라미터의 타입은 반드시 선언해야 한다.
+    ```rust
+    fn main() {
+        another_function(5);
+    }
+
+    fn another_function(x: i32) {
+        println!("The value of x is: {x}");
+    }
+    ```
+  - 리턴 값을 갖는 함수는 다음과 같습니다.
+    ```rust
+    fn five() -> i32 {
+        5    // i32 타입 값 5를 리턴한다. 중요한 것은 리턴 구문은 끝에 ;를 붙이지 말아야 한다.
+    }
+
+    fn main() {
+        let x = five();
+
+        println!("The value of x is: {x}");
+    }    
+    ```
+
+## 주석
+
+* C/C++ 언어와 비슷하다.
+  - 단일 주석: //로 시작한다.
+  - 다중 주석: /*와 */로 감싼다.
+
+## 조건문
+
+* if
+  - ```rust
+    fn main() {
+        let number = 6;
+
+        if number % 4 == 0 {
+            println!("number is divisible by 4");
+        } else if number % 3 == 0 {
+            println!("number is divisible by 3");
+        } else if number % 2 == 0 {
+            println!("number is divisible by 2");
+        } else {
+            println!("number is not divisible by 4, 3, or 2");
+        }
+    }
+    ```
+  - if 이후에 ()가 없습니다. 조건문은 반드시 bool 타입이어야 합니다.
+
+## 반복문
+
+* loop: 무한루프, {}로 감싼다. break로 벗어날 수 있다.
+* while: 조건이 true인 동안에는 계속 반복한다.
+* for: `for [조건] in [배열]` 형태이며 배열 요소를 순회하며 반복문을 실행한다.
+  - ```rust
+    fn main() {
+        let a = [10, 20, 30, 40, 50];
+
+        for element in a {
+            println!("the value is: {element}");
+        }
+    }
+    ```
+  - ```rust
+    fn main() {
+        for number in (1..4).rev() {
+            println!("{number}!");
+        }
+        println!("LIFTOFF!!!");
+    }
+
+    // 여기서 number는 3, 2, 1 순서대로 실행한다.
+    ```
