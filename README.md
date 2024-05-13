@@ -476,3 +476,239 @@ fn main() {
     let slice = &s[0..len];  // "hello world"
     let slice = &s[..];      // "hello world"
     ```
+
+## 구조체
+
+### 구조체 정의 및 인스턴스화
+
+* 구조체 정의 형식은 다음과 같다. (각 변수는 필드라고 부르며, 이름과 타입을 명시하면 된다)
+  ```rust
+  struct User {
+      active: bool,
+      username: String,
+      email: String,
+      sign_in_count: u64,
+  }
+  ```
+
+* 구조체를 기반으로 인스턴스를 만드는 방법은 다음과 같다.
+  ```rust
+  fn main() {
+      let user1 = User {
+          active: true,
+          username: String::from("someusername123"),
+          email: String::from("someone@example.com"),
+          sign_in_count: 1,
+      };
+  }
+  ```
+
+* 구조체 내 필드에 접근하려면 . 표기법을 사용하면 된다. (인스턴스 전체에 가변성이 적용됨)
+  ```rust
+  fn main() {
+      let mut user1 = User {
+          active: true,
+          username: String::from("someusername123"),
+          email: String::from("someone@example.com"),
+          sign_in_count: 1,
+      };
+
+      user1.email = String::from("anotheremail@example.com");
+  }
+  ```
+
+* 다음은 파라미터로 일부 값들을 받고 인스턴스를 생성하여 리턴하는 함수이다. (단, 파라미터와 필드명이 같으면 2번째 경우처럼 표기를 축약할 수 있음)
+  - ```rust
+    fn build_user(email: String, username: String) -> User {
+        User {
+            active: true,
+            username: username,
+            email: email,
+            sign_in_count: 1,
+        }
+    }
+    ```
+  - ```rust
+    fn build_user(email: String, username: String) -> User {
+        User {
+            active: true,
+            username,
+            email,
+            sign_in_count: 1,
+        }
+    }
+    ```
+
+* 기존 인스턴스로 새 인스턴스 만들기
+  - ```rust
+    fn main() {
+        // --생략--
+
+        let user2 = User {
+            active: user1.active,
+            username: user1.username,
+            email: String::from("another@example.com"),
+            sign_in_count: user1.sign_in_count,
+        };
+    }    
+    ```
+  - 만약 필드명이 같으면 `..user1`처럼 객체명을 활용하여 표기를 축약할 수 있다.
+    ```rust
+    fn main() {
+        // --생략--
+
+        let user2 = User {
+            email: String::from("another@example.com"),
+            ..user1
+        };
+    }
+    ```
+  - __주의사항: 만약 user2에 할당하는 값 중에서 힙 데이터가 하나라도 있으면 user2로 할당한 후에는 user1을 사용할 수 없게 된다.__
+
+* 명명된 필드 없는 튜플 구조체를 사용하여 다른 타입 만들기
+  - ```rust
+    struct Color(i32, i32, i32);
+    struct Point(i32, i32, i32);
+
+    fn main() {
+        let black = Color(0, 0, 0);
+        let origin = Point(0, 0, 0);
+    }
+    // Color와 Point는 구성이 동일하더라도 서로 다른 구조체이므로 할당 호환이 안 된다.
+    ```
+
+* 필드가 없는 유사 유닛 구조체
+  - 유사 유닛 구조체: 어떤 타입에 대해 트레이트를 구현하고 싶지만 타입 내부에 어떤 데이터를 저장할 필요는 없을 경우 유용하다.
+  - ```rust
+    struct AlwaysEqual;    // 중괄호, 괄호도 없다!
+
+    fn main() {
+        let subject = AlwaysEqual;
+    }
+    ```
+  - 나중에 AlwaysEqual의 모든 인스턴스는 언제나 다른 모든 타입의 인스턴스와 같도록 하는 동작을 구현하여, 이미 알고 있는 결과값의 테스트 용도로 사용한다고 가정해 본다. 이런 동작에는 데이터가 필요 없을 것이다!
+
+### 트레이트 파생으로 유용한 기능 추가하기
+
+* 구조체는 `println!` 및 `{}` 자리표시자(placeholder)와 함께 사용하기 위한 `Display` 구현체가 기본 제공되지 않기 때문에 다음 코드는 오류가 발생한다.
+  - ```rust
+    struct Rectangle {
+        width: u32,
+        height: u32,
+    }
+
+    fn main() {
+        let rect1 = Rectangle {
+            width: 30,
+            height: 50,
+        };
+
+        println!("rect1 is {}", rect1);
+    }
+    ```
+
+* 다음과 같이 Debug 트레이트를 구현하여 구조체 내용을 println!으로 출력할 수 있다.
+  - ```rust
+    #[derive(Debug)]    // 구조체 정의에 outer attribute를 작성해 주어야 한다.
+    struct Rectangle {
+        width: u32,
+        height: u32,
+    }
+
+    fn main() {
+        let rect1 = Rectangle {
+            width: 30,
+            height: 50,
+        };
+
+        println!("rect1 is {:?}", rect1);    // {:?}는 println!에 Debug 출력 형식을 사용하고 싶다고 요청하는 것과 같다.
+        // {:?} 대신 {:#?}를 사용하면 좀 더 읽기 편한 형태로 출력될 것이다.
+    }
+    ```
+
+* Debug 포맷을 사용하여 값을 출력하는 그밖의 방법은 dbg! 매크로를 사용하는 것이다.
+  - println!(참조자를 사용함)과 달리 dbg! 매크로는 표현식의 소유권을 가져와서 매크로를 호출한 파일 및 라인 번호를 결과값과 함께 출력하고 다시 소유권을 반환한다.
+  - 또한 dbg! 매크로는 표준 출력 콘솔 스트림(stdout) 대신 표준 오류 콘솔 스트림(stderr)에 출력한다.
+  - ```rect
+    #[derive(Debug)]
+    struct Rectangle {
+        width: u32,
+        height: u32,
+    }
+
+    fn main() {
+        let scale = 2;
+        let rect1 = Rectangle {
+            width: dbg!(30 * scale),
+            height: 50,
+        };
+
+        dbg!(&rect1);
+    }
+    ```
+  - 결과는 다음과 같다.
+    ```
+    $ cargo run
+       Compiling rectangles v0.1.0 (file:///projects/rectangles)
+        Finished dev [unoptimized + debuginfo] target(s) in 0.61s
+         Running `target/debug/rectangles`
+    [src/main.rs:10] 30 * scale = 60
+    [src/main.rs:14] &rect1 = Rectangle {
+        width: 60,
+        height: 50,
+    }
+    ```
+
+### 메서드 문법
+
+* 메서드는 함수와 유사하다.
+  - `fn` 키워드와 함수명으로 선언하고, 파라미터와 리턴 값을 가지며, 다른 어딘가로부터 호출될 때 실행된다.
+  - 메서드는 함수와 달리 구조체 (또는 열거형, 트레이트 객체) 안에서 정의되고, 1번째 파라미터는 항상 `self`이다.
+  - `self` 파라미터는 메서드를 호출하고 있는 구조체 인스턴스를 의미한다.
+
+* 다음은 Rectangle 구조체에 area 메서드를 정의한 것입니다.
+  - ```rust
+    #[derive(Debug)]
+    struct Rectangle {
+        width: u32,
+        height: u32,
+    }
+
+    // imple 키워드를 사용하여 메서드를 정의한다.
+    impl Rectangle {
+        // rectangle: &Rectangle 대신 &self를 사용한다. (&self는 실제로는 self: &Self를 줄인 것이다)
+        // 가변 구조체를 받고 싶으면 &mut self를 사용할 것
+        // self라고 하면 인스턴스의 소유권을 가져올 수 있으나 흔치는 않음
+        fn area(&self) -> u32 {
+            self.width * self.height
+        }
+    }
+
+    fn main() {
+        let rect1 = Rectangle {
+            width: 30,
+            height: 50,
+        };
+
+        println!(
+            "The area of the rectangle is {} square pixels.",
+            rect1.area()
+        );
+    }
+    ```
+
+* 연관 함수 (associated function)
+  - `impl` 블록 내에 구현된 모든 함수를 연관 함수라고 한다.
+  - 동작하는 데 해당 타입의 인스턴스가 필요하지 않다면 1번째 파라미터인 `self`를 생략한 (메서드가 아닌) 연관 함수를 정의할 수도 있다.
+  - 메서드가 아닌 연관 함수는 구조체의 새 인스턴스를 리턴하는 생성자로 자주 활용된다.
+    ```rust
+    impl Rectangle {
+        fn square(size: u32) -> Self {
+            Self {
+                width: size,
+                height: size,
+            }
+        }
+    }
+    // 연관 함수를 호출할 땐 `let sq = Rectangle::square(3);`처럼 구조체 명에 `::` 구문을 붙여서 호출한다.
+    ```
