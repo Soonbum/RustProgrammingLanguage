@@ -973,7 +973,7 @@ fn main() {
   - 모듈 트리 구조는 다음과 같다.
     ```
     crate
-    |- front_of_hosue (접객 부서)
+    |- front_of_house
         |- hosting
         |   |- add_to_waitlist
         |   |- seat_at_table
