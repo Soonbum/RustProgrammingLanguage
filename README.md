@@ -712,3 +712,159 @@ fn main() {
     }
     // 연관 함수를 호출할 땐 `let sq = Rectangle::square(3);`처럼 구조체 명에 `::` 구문을 붙여서 호출한다.
     ```
+
+## 열거형과 패턴 매칭
+
+### 열거형 정의하기
+
+* 열거형은 다음과 같이 정의/사용할 수 있습니다.
+  ```rust
+  enum IpAddrKind {
+      V4,
+      V6,
+  }
+
+  struct IpAddr {
+      kind: IpAddrKind,
+      address: String,
+  }
+
+  let home = IpAddr {
+      kind: IpAddrKind::V4,
+      address: String::from("127.0.0.1"),
+  };
+
+  let loopback = IpAddr {
+      kind: IpAddrKind::V6,
+      address: String::from("::1"),
+  };
+  ```
+
+* 각 열거형 배리언트에 데이터를 직접 넣는 방식을 사용하면 열거형을 구조체의 일부로 사용하는 방식보다 더 간결하게 표현할 수 있다.
+  - 이렇게 하면 구조체를 사용할 필요가 없어진다.
+    ```rust
+    enum IpAddr {
+        V4(String),
+        V6(String),
+   }
+
+    let home = IpAddr::V4(String::from("127.0.0.1"));
+    let loopback = IpAddr::V6(String::from("::1"));
+    ```
+  - 또 다음과 같이 각 배리언트가 다른 타입과 다른 양의 연관된 데이터를 가질 수도 있다.
+    ```rust
+    enum IpAddr {
+        V4(u8, u8, u8, u8),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(127, 0, 0, 1);
+    let loopback = IpAddr::V6(String::from("::1"));
+    ```
+
+* `Option` 열거형이 널 값보다 좋은 점들
+  - `Option` 타입은 값이 있거나 없을 수 있는 상황을 의미한다.
+  - 러스트는 다른 언어들에서 흔하게 볼 수 있는 널(null) 개념이 없다.
+  - 대신 널(null)에 의해 발생할 수 있는 수많은 오류는 방지하면서 `Option` 열거형으로 동일한 개념을 표현할 수 있다.
+    ```rust
+    enum Option<T> {
+        None,
+        Some(T),
+    }
+    ```
+  - 아래는 숫자 타입과 문자열 타입을 갖는 `Option` 값에 대한 예시입니다.
+    ```rust
+    let some_number = Some(5);
+    let some_char = Some('e');
+
+    let absent_number: Option<i32> = None;
+    ```
+
+### match 제어 흐름 구조
+
+* if 문과 비슷해 보이지만 다음과 같은 차이점이 있다.
+  - if 문은 반드시 bool 값을 리턴해야 하지만, match 제어문은 어떤 타입이든 리턴할 수 있다.
+
+* 다음은 열거형과 열거형의 배리언트를 패턴으로 사용하는 match 표현식입니다. (참고로 열거형은 또 다른 열거형을 파라미터로 받을 수도 있다)
+  - ```rust
+    enum Coin {
+        Penny,
+        Nickel,
+        Dime,
+        Quarter,
+    }
+
+    fn value_in_cents(coin: Coin) -> u8 {
+        match coin {
+            Coin::Penny => {
+                println!("Lucky penny!");
+                1
+            }
+            Coin::Nickel => 5,
+            Coin::Dime => 10,
+            Coin::Quarter => 25,
+        }
+    }
+    ```
+
+* `Option<T>`를 이용하는 매칭
+  - 다음 코드는 내부에 값이 있으면 그 값에 1을 더하고, 값이 없으면 `None` 값을 리턴하는 함수입니다.
+  - ```rust
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            None => None,
+            Some(i) => Some(i + 1),
+        }
+    }
+
+    let five = Some(5);
+    let six = plus_one(five);
+    let none = plus_one(None);
+    ```
+
+* 포괄 패턴과 `_` 자리표시자
+  - 열거형을 사용하면서 특정한 몇 개의 값들에 대해 특별한 동작을 하고, 그 외의 값들에 대해서는 기본 동작을 취하도록 할 수 있다.
+  - ```rust
+    let dice_roll = 9;
+    match dice_roll {
+        3 => add_fancy_hat(),    // 주사위 값이 3이 나오면 멋진 모자를 얻는다.
+        7 => remove_fancy_hat(),    // 주사위 값이 7이 나오면 모자를 잃게 된다.
+        other => move_player(other),    // 해당 숫자만큼 칸을 움직인다.
+    }
+
+    fn add_fancy_hat() {}
+    fn remove_fancy_hat() {}
+    fn move_player(num_spaces: u8) {}
+    ```
+  - 만약 위 코드에서 `other` 변수 대신 `_`를 사용하면, 3 또는 7 이외의 숫자가 나오면 주사위를 다시 굴린다.
+  - ```rust
+    let dice_roll = 9;
+    match dice_roll {
+        3 => add_fancy_hat(),    // 주사위 값이 3이 나오면 멋진 모자를 얻는다.
+        7 => remove_fancy_hat(),    // 주사위 값이 7이 나오면 모자를 잃게 된다.
+        _ => reroll(),    // 3 또는 7 이외의 숫자가 나오면 주사위를 다시 굴린다.
+    }
+
+    fn add_fancy_hat() {}
+    fn remove_fancy_hat() {}
+    fn reroll() {}
+    ```
+
+### if let을 사용한 간결한 제어 흐름
+
+* if let 문법은 if와 let을 조합하여 하나의 패턴만 매칭시키고 나머지 경우는 무시하도록 값을 처리하는 간결한 방법을 제공한다.
+  - 다음은 어떤 값이 `Some`일 때에만 코드를 실행하도록 하는 `match` 문이다.
+  - ```rust
+    let config_max = Some(3u8);
+    match config_max {
+        Some(max) => println!("The maximum is configured to be {}", max),
+        _ => (),
+    }
+    ```
+  - 다음은 앞의 `match` 문을 `if let`으로 대체한 코드이다. (이렇게 하면 `_ => ()`를 생략할 수 있다)
+  - ```rust
+    let config_max = Some(3u8);
+    if let Some(max) = config_max {
+        println!("The maximum is configured to be {}", max);
+    }
+    ```
