@@ -1193,6 +1193,79 @@ fn main() {
 
 ### 벡터에 여러 값의 목록 저장하기
 
+* `Vec<T>`
+  - 메모리에서 모든 값을 연속적으로 배치하는 단일 데이터 구조이며 하나 이상의 값을 저장할 수 있다.
+  - 벡터는 같은 타입의 값만을 저장할 수 있다.
+
+* 새 벡터 만들기
+  - ```rust
+    let v: Vec<i32> = Vec::new();    // 1. i32 타입의 값을 가질 수 있는 비어 있는 새 벡터 생성
+    let v = vec![1, 2, 3];           // 2. 값을 저장하고 있는 새로운 벡터 생성하기
+    ```
+
+* 벡터 업데이트하기
+  - ```rust
+    let mut v = Vec::new();
+
+    v.push(5);
+    v.push(6);
+    v.push(7);
+    v.push(8);
+    ```
+
+* 벡터 요소 읽기
+  - ```rust
+    let v = vec![1, 2, 3, 4, 5];
+
+    let third: &i32 = &v[2];    // 인덱스 문법을 사용하여 벡터 내 아이템에 접근하기 (존재하지 않는 요소를 참조하면 오류 발생)
+    println!("The third element is {third}");
+
+    let third: Option<&i32> = v.get(2);    // get 메서드를 사용하여 벡터 내 아이템에 접근하기 (존재하는 요소를 참조하면 Some(&element), 존재하지 않는 요소를 참조하면 None 리턴)
+    match third {
+        Some(third) => println!("The third element is {third}"),
+        None => println!("There is no third element."),
+    }
+    ```
+  - 그러나 아이템의 참조자를 가지고 있는 상태에서 벡터에 새로운 요소를 추가 시도하면 컴파일 오류가 발생한다.
+    ```rust
+    let mut v = vec![1, 2, 3, 4, 5];
+    let first = &v[0];    // 참조자를 넘겨준 상태에서
+    v.push(6);            // 변경이 발생하면 일관성이 깨지므로 오류를 발생시킴
+    println!("The first element is: {first}");
+    ```
+
+* 벡터 값에 대해 반복하기
+  - 불변 참조자를 이용하는 경우
+    ```rust
+    let v = vec![100, 32, 57];
+    for i in &v {
+        println!("{i}");
+    }
+    ```
+  - 가변 참조자를 이용하는 경우
+    ```rust
+    let mut v = vec![100, 32, 57];
+    for i in &mut v {
+        *i += 50;
+    }
+    ```
+
+* 열거형을 이용해 여러 타입 저장하기
+  - 기본적으로 벡터는 같은 타입의 값들만 저장 가능하나 열거형을 이용하면 간접적으로 다른 타입의 자료를 벡터에 담을 수 있다.
+  - ```rust
+    enum SpreadsheetCell {
+        Int(i32),
+        Float(f64),
+        Text(String),
+    }
+
+    let row = vec![
+        SpreadsheetCell::Int(3),
+        SpreadsheetCell::Text(String::from("blue")),
+        SpreadsheetCell::Float(10.12),
+    ];
+    ```
+
 ### 문자열에 UTF-8 텍스트 저장하기
 
 ### 해시맵에 서로 연관된 키와 값 저장하기
