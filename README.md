@@ -1073,4 +1073,94 @@ fn main() {
 
 ### use 키워드로 경로를 스코프 안으로 가져오기
 
+* `use` 키워드를 사용하면 단축경로(shortcut)를 만들 수 있다.
+  - 다음은 HashMap 표준 라이브러리 구조체를 바이너리 크레이트의 스코프로 가져오는 관용적인 코드 예시이다.
+  - ```rust
+    use std::collections::HashMap;
+
+    fn main() {
+        let mut map = HashMap::new();
+        map.insert(1, 2);
+    }
+    ```
+
+* as 키워드로 새로운 이름 제공하기
+  - `use` 키워드로 동일한 이름의 타입을 스코프로 여러 개 가져오고 싶으면, 경로 뒤에 `as` 키워드를 작성하고 새로운 이름이나 타입 별칭을 작성하면 된다.
+  - ```rust
+    use std::fmt::Result;
+    use std::io::Result as IoResult;
+
+    fn function1() -> Result {
+        // --생략--
+    }
+
+    fn function2() -> IoResult<()> {
+        // --생략--
+    }
+    ```
+
+* pub use로 다시 내보내기
+  - `use` 키워드로 이름을 가져오면, 해당 이름은 새 위치의 스코프에서 비공개가 된다.
+  - `pub use` 키워드를 사용하면, 우리 코드를 호출하는 코드가 해당 스코프에 정의된 것처럼 해당 이름을 참조할 수 있다.
+  - 아이템을 스코프로 가져오는 동시에 다른 곳에서 아이템을 가져갈 수 있도록 해준다. (다시 내보내기, re-exporting이라고 함)
+  - ```rust
+    mod front_of_house {
+        pub mod hosting {
+            pub fn add_to_waitlist() {}
+        }
+    }
+
+    pub use crate::front_of_house::hosting;    // 외부 코드에 내보내는 효과가 있음
+
+    pub fn eat_at_restaurant() {
+        hosting::add_to_waitlist();
+    }
+    ```
+  - `pub use` 키워드 대신 `use` 키워드를 썼다면, add_to_waitlist() 함수를 호출하려면 `restaurant::front_of_house::hosting::add_to_waitlist()`를 해야 한다.
+  - `pub use` 키워드를 썼다면, `restaurant::hosting::add_to_waitlist()`를 사용할 수 있다.
+
+* 외부 패키지 사용하기
+  - 외부 패키지를 사용하려면 Cargo.toml 파일의 의존성에 외부 패키지를 추가해야 한다.
+  - ```
+    ...
+
+    [dependencies]
+    rand = "0.8.5"
+    ```
+  - 이렇게 하면 카고가 [crates.io](https://crates.io/)에서 `rand` 패키지를 비롯한 모든 의존성을 다운로드하고 프로젝트에서 `rand` 패키지를 사용할 수 있게 된다.
+  - ```rust
+    use rand::Rng;
+
+    fn main() {
+        let secret_number = rand::thread_rng().gen_range(1..=100);
+    }
+    ```
+
+* 중첩 경로를 사용하여 대량의 use 나열을 정리하기
+  - 동일한 크레이트나 동일한 모듈 내에 정의된 아이템을 여러 개 사용할 경우 다음과 같이 `use` 문이 많아지게 된다.
+  - 예시 1)
+    ```rust
+    // 줄이기 전
+    use std::cmp::Ordering;
+    use std::io;
+    ```
+    ```rust
+    // 줄인 후
+    use std::{cmp::Ordering, io};
+    ```
+  - 예시 2)
+    ```rust
+    use std::io;
+    use std::io::Write;
+    ```
+    ```rust
+    use std::io::{self, Write};
+    ```
+
+* 글롭 (glob) 연산자
+  - 경로에 글롭 (glob) 연산자 `*`를 붙이면 경로 안에 정의된 모든 공개 아이템을 가져올 수 있다. (남용하지 않는 편이 좋다)
+  - ```rust
+    use std::collections::*;
+    ```
+
 ### 별개의 파일로 모듈 분리하기
