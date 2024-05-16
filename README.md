@@ -985,6 +985,92 @@ fn main() {
 
 ### 경로를 사용하여 모듈 트리의 아이템 참조하기
 
+* 함수를 호출하려면 그 함수의 경로를 알아야 한다.
+  - 절대 경로: 크레이트 루트로부터 시작되는 전체 경로를 의미한다. 외부 크레이트로부터 접근할 때에는 해당 크레이트 이름으로 절대 경로가 시작된다. 현재 크레이트로부터에 대해서는 `crate` 리터럴로부터 시작된다.
+  - 상대 경로: 현재의 모듈을 시작점으로 하여 `self`, `super` 혹은 현재 모듈 내의 식별자를 사용한다.
+
+* 절대 경로, 상대 경로 뒤에는 `::`로 구분된 식별자가 하나 이상 나온다.
+  - ```rust
+    // 자식은 부모의 private 요소에 접근 가능하지만, 부모는 자식의 private 요소에 접근이 불가능함
+    mod front_of_house {    // eat_at_restaurant() 함수와 같은 모듈 안에 있으므로 pub가 아니어도 접근 가능함
+        pub mod hosting {                  // pub 키워드를 추가해야 컴파일 오류가 발생하지 않음 (경로 노출 효과)
+            pub fn add_to_waitlist() {}    // pub 키워드를 추가해야 컴파일 오류가 발생하지 않음 (경로 노출 효과)
+        }
+    }
+
+    pub fn eat_at_restaurant() {
+        // 절대 경로
+        crate::front_of_house::hosting::add_to_waitlist();
+
+        // 상대 경로
+        front_of_house::hosting::add_to_waitlist();
+    }    
+    ```
+
+* super로 시작하는 상대 경로
+  - `super`로 시작하면 현재 모듈 혹은 크레이트 루트 대신 자기 부모 모듈부터 시작되는 상대 경로를 만들 수 있다. (파일시스템의 `..` 역할)
+  - ```rust
+    fn deliver_order() {}
+
+    mod back_of_house {
+        fn fix_incorrect_order() {
+            cook_order();
+            super::deliver_order();
+        }
+
+        fn cook_order() {}
+    }
+    ```
+
+* 구조체 공개하기
+  - 구조체 정의에 `pub` 키워드를 쓰면 구조체는 공개되어도 구조체 필드는 비공개로 유지된다. (공개 여부는 각 필드마다 정해야 함)
+  - ```rust
+    mod back_of_house {
+        pub struct Breakfast {
+            pub toast: String,
+            seasonal_fruit: String,
+        }
+
+        impl Breakfast {
+            pub fn summer(toast: &str) -> Breakfast {
+                Breakfast {
+                    toast: String::from(toast),
+                    seasonal_fruit: String::from("peaches"),
+                }
+            }
+        }
+    }
+
+    pub fn eat_at_restaurant() {
+        // 호밀 (Rye) 토스트를 곁들인 여름철 조식 주문하기
+        let mut meal = back_of_house::Breakfast::summer("Rye");
+        // 먹고 싶은 빵 바꾸기
+        meal.toast = String::from("Wheat");
+        println!("I'd like {} toast please", meal.toast);
+
+        // 다음 라인의 주석을 해제하면 컴파일되지 않습니다; 식사와 함께
+        // 제공되는 계절 과일은 조회나 수정이 허용되지 않습니다
+        // meal.seasonal_fruit = String::from("blueberries");
+    }
+    ```
+
+* 열거형 공개하기
+  - 열거형을 공개하는 방법은 `enum` 키워드 앞에 `pub` 키워드를 작성하면 된다.
+  - 구조체와 달리 모든 배리언트가 공개된다.
+  - ```rust
+    mod back_of_house {
+        pub enum Appetizer {
+            Soup,
+            Salad,
+        }
+    }
+
+    pub fn eat_at_restaurant() {
+        let order1 = back_of_house::Appetizer::Soup;
+        let order2 = back_of_house::Appetizer::Salad;
+    }
+    ```
+
 ### use 키워드로 경로를 스코프 안으로 가져오기
 
 ### 별개의 파일로 모듈 분리하기
