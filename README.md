@@ -1354,3 +1354,105 @@ fn main() {
     ```
 
 ### 해시맵에 서로 연관된 키와 값 저장하기
+
+* 새로운 해시맵 생성하기
+  - 해시맵은 키(key)-값(value) 쌍을 가질 수 있으며, 키(key)는 유일하다.
+  - ```rust
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);      // 블루 팀 10점으로 시작
+    scores.insert(String::from("Yellow"), 50);    // 옐로 팀 50점으로 시작
+    ```
+  - 모든 키는 서로 같은 타입이어야 하며, 모든 값도 같은 타입이어야 한다.
+
+* 해시맵의 값 접근하기
+  - ```rust
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Yellow"), 50);
+
+    let team_name = String::from("Blue");
+    let score = scores.get(&team_name).copied().unwrap_or(0);    // get 메서드: Option<&V>를 반환함
+                                                                 // copied 함수: Option<&i32>가 아닌 Option<i32>를 얻어옴
+                                                                 // unwrap_or 함수: scores가 해당 키에 대한 아이템을 갖고 있지 않으면 score에 0을 설정함
+    ```
+  - ```rust
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Yellow"), 50);
+
+    for (key, value) in &scores {
+        println!("{key}: {value}");    // for 루프를 사용하여 해시맵 내 키/값 쌍에 대한 반복 작업 수행
+    }
+    ```
+
+* 해시맵과 소유권
+  - ```rust
+    use std::collections::HashMap;
+
+    let field_name = String::from("Favorite color");
+    let field_value = String::from("Blue");
+
+    let mut map = HashMap::new();
+    map.insert(field_name, field_value);
+    // 이 시점 이후로는 field_name과 field_value는 유효하지 않음 (소유권 이전됨)
+    ```
+
+* 해시맵 업데이트하기
+  - 해시맵 업데이트 방식은 다음과 같다
+    * (1) 예전 값을 무시하고 새 값으로 대체함
+    * (2) 예전 값을 계속 유지하고 새 값을 무시하고, 해당 키에 값이 할당되어 있지 않은 경우에만 새 값을 추가함
+    * (3) 예전 값과 새 값을 조합함
+  - 값 덮어쓰기
+    ```rust
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Blue"), 25);    // 새로운 값("Blue": 25)으로 대체함
+
+    println!("{:?}", scores);    // {"Blue": 25} 출력
+    ```
+  - 키가 없을 때만 키와 값 추가하기
+    ```rust
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+    scores.insert(String::from("Blue"), 10);
+
+    scores.entry(String::from("Yellow")).or_insert(50);  // Yellow는 값이 없으므로 50이 할당됨
+    scores.entry(String::from("Blue")).or_insert(50);    // Blue는 이미 10이 있으므로 삽입이 안됨
+
+    println!("{:?}", scores);    // {"Yellow": 50, "Blue": 10} 출력
+    ```
+  - 예전 값에 기초하여 값 업데이트하기
+    ```rust
+    use std::collections::HashMap;
+
+    let text = "hello world wonderful world";
+
+    let mut map = HashMap::new();
+
+    for word in text.split_whitespace() {    // hello, world, wonderful, world 단어 순서대로 삽입 시도
+        let count = map.entry(word).or_insert(0);    // 처음 본 단어라면 값 0을 삽입하고, 값이 들어간 횟수를 count로 가변 참조자(&mut V) 반환
+        *count += 1;    // 단어의 등장 횟수를 증가시킴 (*count는 가변 참조자를 역참조함)
+    }
+
+    println!("{:?}", map);    // {"world": 2, "hello": 1, "wonderful": 1} 출력
+    ```
+
+* 해시 함수
+  - `HashMap`은 해시 테이블과 관련된 서비스 거부 공격(Denial of Service attack)에 저항 기능을 제공할 수 있는 SipHash 해시 함수를 사용함
+  - 만약 다른 해시 함수를 사용하고 싶으면 다른 해시어(hasher)를 지정할 수 있다.
+  - 해시어(hasher)는 `BuildHasher` 트레이트를 구현한 타입을 말한다.
+
+## 오류 처리
