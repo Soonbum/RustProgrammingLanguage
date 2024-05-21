@@ -1268,4 +1268,89 @@ fn main() {
 
 ### 문자열에 UTF-8 텍스트 저장하기
 
+* 러스트에서 문자열이라고 한다면, `String` 또는 `&str` 중 하나를 의미한다.
+  - 참조형 `&str` 형태로 사용하는 문자열 슬라이스 `str`
+    * UTF-8로 인코딩되어 다른 어딘가에 저장된 문자열 데이터의 참조자
+    * 문자열 리터럴은 프로그램의 바이너리 결과물 안에 저장되어 있다.
+  - `String` 타입은 러스트의 표준 라이브러리를 통해 제공된다.
+    * 러스트 언어의 Primitive 타입이 아니며, 가변적이고, 소유권을 갖고 있고, UTF-8로 인코딩된 문자열 타입이다.
+
+* 새로운 문자열 생성하기
+  - ```rust
+    let mut s = String::new();    // 빈 문자열 생성, String은 Vec<u8>을 감싼 것임 (String은 벡터에 기능이 추가된 래퍼(wrapper)로 구현되어 있기 때문이다)
+    ```
+  - ```rust
+    let data = "initial contents";
+    let s = data.to_string();
+
+    let s = "initial contents".to_string();    // 이 메서드는 리터럴에서도 바로 작동함 (Display 트레이트)
+    ```
+  - ```rust
+    let s = String::from("initial contents");    // String::from 함수는 to_string 메서드와 같은 효과를 가짐
+    ```
+
+* 문자열 업데이트하기
+  - ```rust
+    let mut s = String::from("foo");
+    s.push_str("bar");    // push_str 메서드로 String에 문자열 슬라이스 추가
+    ```
+  - ```rust
+    let mut s1 = String::from("foo");
+    let s2 = "bar";
+    s1.push_str(s2);    // 문자열 슬라이스를 String에 붙인 후에 문자열 슬라이스 사용하기
+    println!("s2 is {s2}");
+    ```
+  - ```rust
+    let mut s = String::from("lo");
+    s.push('l');    // push를 사용하여 String 값에 글자 추가하기
+    ```
+  - ```rust
+    let s1 = String::from("Hello, ");
+    let s2 = String::from("world!");
+    let s3 = s1 + &s2;    // + 연산자나 format! 매크로를 이용한 접합 (s1은 더 이상 사용할 수 없음)
+                          // + 연산자는 add 메서드를 사용한다. add 메서드의 시그니처는 다음과 같다: fn add(self, s: &str) -> String
+                          // String에는 &str만 더할 수 있고, String끼리는 더할 수 없다!
+                          // &s2는 &String이지만 역참조 강제(deref coercion)에 의해 &str로 강제됨 (s2는 이후에도 유효한 String)
+                          // self가 s1의 소유권을 가져가므로 s1은 이후에 참조할 수 없다.
+                          // 즉, s1의 소유권을 가져다가 s2의 복사본을 추가한 다음 결과물의 소유권을 s3에게 반환함
+    ```
+  - ```rust
+    let s1 = String::from("tic");
+    let s2 = String::from("tac");
+    let s3 = String::from("toe");
+
+    let s = format!("{s1}-{s2}-{s3}");    // format! 매크로를 사용하여 복잡한 문자열 조합 (참조자를 사용하므로 소유권을 가져가지 않음)
+    ```
+
+* 문자열 내부 인덱싱
+  - 러스트에서는 인덱스를 이용한 참조를 통해 문자열 내부의 개별 문자에 접근하면 오류가 발생한다.
+  - ```rust
+    let s1 = String::from("hello");
+    let h = s1[0];    // 컴파일 오류 발생: 인덱싱 지원 안함
+                      // 유니코드의 경우 2바이트를 차지하므로 예상치 못한 값을 리턴하는 것을 미연에 방지하기 위해 문자열 인덱싱을 금지하였음
+                      // 또, 문자열 내에 유효한 문자 개수를 알아내기 위해 O(n) 시간을 소요하는 문제가 있기도 하여 문자열 인덱싱을 금지하였음
+    ```
+
+* 문자열 슬라이싱
+  - 문자열 인덱싱은 금지되어 있으나, 범위를 입력하면 유니코드도 제대로 가져올 수 있으므로 러스트에서 문자열 슬라이싱을 허용하고 있다.
+  - 그러나 문자 바이트의 일부를 슬라이스로 얻으려고 하면 벡터 내에 유효하지 않은 인덱스에 접근했던 것과 마찬가지로 컴파일 오류가 발생한다.
+  - ```rust
+    let hello = "Здравствуйте";
+    let s = &hello[0..4];    // "Зд"와 같음
+    //let s = &hello[0..1];    // 컴파일 오류 발생
+    ```
+
+* 문자열에 대한 반복을 위한 메서드
+  - 명시적으로 문자를 원하는지, 바이트를 원하는지 지정하는 것이 가장 좋다.
+  - ```rust
+    for c in "Зд".chars() {
+        println!("{c}");    // З, д를 순서대로 출력함 (간접적인 문자열 인덱싱)
+    }
+    ```
+  - ```rust
+    for b in "Зд".bytes() {
+        println!("{b}");    // 208, 151, 208, 180을 순서대로 출력함 (바이트 값 출력)
+    }
+    ```
+
 ### 해시맵에 서로 연관된 키와 값 저장하기
