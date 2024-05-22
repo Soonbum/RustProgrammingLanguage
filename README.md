@@ -1681,3 +1681,239 @@ fn main() {
     ```
 
 ## 제네릭 타입, 트레이트, 라이프타임
+
+### 제네릭 데이터 타입
+
+* 제네릭 함수를 정의할 때는 함수 시그니처 내 파라미터와 리턴 값의 데이터 타입 위치에 제네릭을 사용한다.
+  - 제네릭 함수를 사용하면 코드는 더 유연해지고 코드 중복을 방지할 수 있다.
+  - ```rust
+    // largest 함수의 `<T>` 대신 `<T: std::cmp::PartialOrd>`로 바꿔야 한다.
+    // (값의 비교가 필요하므로 값을 정렬할 수 있는 티입에 대해서만 동작할 수 있음)
+    // 그러므로 `std::cmp::PartialOrd` 트레이트를 제공해야 한다.
+    fn largest<T: std::cmp::PartialOrd>(list: &[T]) -> &T {
+        let mut largest = &list[0];
+
+        for item in list {
+            if item > largest {
+                largest = item;
+            }
+        }
+
+        largest
+    }
+
+    fn main() {
+        let number_list = vec![34, 50, 25, 100, 65];
+
+        let result = largest(&number_list);
+        println!("The largest number is {}", result);
+
+        let char_list = vec!['y', 'm', 'a', 'q'];
+
+        let result = largest(&char_list);
+        println!("The largest char is {}", result);
+    }
+    ```
+
+* 제네릭 구조체 정의
+  - `<>` 문법으로 구조체 필드에서 제네릭 타입 파라미터를 사용하도록 구조체를 정의할 수 있다.
+  - 동일한 타입을 갖도록 정의된 제네릭 구조체 정의는 다음과 같다.
+    ```rust
+    struct Point<T> {
+        x: T,
+        y: T,
+    }
+
+    fn main() {
+        let integer = Point { x: 5, y: 10 };
+        let float = Point { x: 1.0, y: 4.0 };
+    }
+    ```
+  - 서로 다른 타입을 가질 수 있도록 정의된 제네릭 구조체 정의는 다음과 같다.
+    ```rust
+    struct Point<T, U> {
+        x: T,
+        y: U,
+    }
+
+    fn main() {
+        let both_integer = Point { x: 5, y: 10 };
+        let both_float = Point { x: 1.0, y: 4.0 };
+        let integer_and_float = Point { x: 5, y: 4.0 };
+    }
+    ```
+
+* 제네릭 열거형 정의
+  - 다음은 표준 라이브러리의 `Option<T>` 열거형이다.
+    ```rust
+    enum Option<T> {
+        Some(T),
+        None,
+    }
+    ```
+  - 열거형에서도 여러 개의 제네릭 타입을 이용할 수 있다.
+    ```rust
+    enum Result<T, E> {
+        Ok(T),
+        Err(E),
+    }
+    ```
+
+* 제네릭 메서드 정의
+  - ```rust
+    struct Point<T> {
+        x: T,
+        y: T,
+    }
+
+    impl<T> Point<T> {
+        fn x(&self) -> &T {
+            &self.x
+        }
+    }
+
+    fn main() {
+        let p = Point { x: 5, y: 10 };
+
+        println!("p.x = {}", p.x());
+    }
+    ```
+  - 또한 제네릭 타입에 대한 제약을 지정할 수도 있다.
+    ```rust
+    impl Point<f32> {
+        fn distance_from_origin(&self) -> f32 {
+            (self.x.powi(2) + self.y.powi(2)).sqrt()
+        }
+    }
+    ```
+  - 구조체 정의에서 사용한 제네릭 타입 파라미터와 구조체의 메서드 시그니처 내에서 사용하는 제네릭 타입 파라미터가 같지 않을 수도 있다.
+    ```rust
+    struct Point<X1, Y1> {
+        x: X1,
+        y: Y1,
+    }
+
+    impl<X1, Y1> Point<X1, Y1> {
+        fn mixup<X2, Y2>(self, other: Point<X2, Y2>) -> Point<X1, Y2> {
+            Point {
+                x: self.x,
+                y: other.y,
+            }
+        }
+    }
+
+    fn main() {
+        let p1 = Point { x: 5, y: 10.4 };
+        let p2 = Point { x: "Hello", y: 'c' };
+
+        let p3 = p1.mixup(p2);
+
+        println!("p3.x = {}, p3.y = {}", p3.x, p3.y);
+    }
+    ```
+
+* 제네릭 코드의 성능
+  - 러스트에서 제네릭 타입을 사용하는 것은 구체적인 타입을 사용했을 때와 비교해서 전혀 느려지지 않는다.
+  - 단형성화(monomorphization): 컴파일 타임에 제네릭 코드를 실제 구체 타입으로 채워진 특정한 코드로 바꾸는 과정
+
+### 트레이트로 공통된 동작 정의하기
+
+* 트레이트(trait): 특정한 타입이 가지고 있으면서 다른 타입과 공유할 수 있는 기능을 정의한다.
+  - 공통된 기능을 추상적으로 정의할 수 있다.
+  - 트레이트 바운드(trait bound)를 이용하면 어떤 제네릭 타입 자리에 특정한 동작을 갖춘 타입이 올 수 있음을 명시할 수 있다.
+  - 다른 언어에서 흔히 인터페이스(interface)라고 부르는 기능과 비슷하다.
+
+* 트레이트 정의하기
+  - 타입의 동작은 해당 타입에서 호출할 수 있는 메서드로 구성된다.
+  - __만약 다양한 타입에서 동일한 메서드를 호출할 수 있다면, 이 타입들은 동일한 동작을 공유한다고 표현할 수 있다.__
+  - 트레이트 정의란 메서드 시그니처를 그룹화하여 특정 목적을 달성하는 데 필요한 일련의 동작을 정의하는 것이다.
+  - 뉴스 기사를 저장하는 `NewsArticle` 구조체, 트윗의 컨텐츠와 메타데이터를 저장하는 `Tweet` 구조체 등 종합 미디어 라이브러리 크레이트 `aggregator`를 만든다고 가정하자.
+  - 각 타입의 요약 정보를 가져오기 위해 `summarize` 메서드를 호출한다. 이 동작을 다음 트레이트 정의로 표현한다.
+    ```rust
+    pub trait Summary {
+        fn summarize(&self) -> String;
+    }
+    ```
+  - 해당 트레이트를 사용할 경우 `summarize` 메서드를 반드시 구현해야 한다. (인터페이스와 유사함)
+
+* 특정 타입에 트레이트 구현하기
+  - `NewsArticle` 구조체의 헤드라인, 저자, 지역 정보를 사용하여 `summarize`의 반환 값을 만드는 `Summary` 트레이트를 구현함
+  - `Tweet` 구조체의 사용자명과 해당 트윗의 전체 텍스트를 가져오는 `summarize`의 반환하는 `Summary` 트레이트를 구현함
+  - ```rust
+    pub struct NewsArticle {
+        pub headline: String,
+        pub location: String,
+        pub author: String,
+        pub content: String,
+    }
+
+    impl Summary for NewsArticle {
+        fn summarize(&self) -> String {
+            format!("{}, by {} ({})", self.headline, self.author, self.location)
+        }
+    }
+
+    pub struct Tweet {
+        pub username: String,
+        pub content: String,
+        pub reply: bool,
+        pub retweet: bool,
+    }
+
+    impl Summary for Tweet {
+        fn summarize(&self) -> String {
+            format!("{}: {}", self.username, self.content)
+        }
+    }
+    ```
+  - 다음은 바이너리 크레이트가 `aggregator` 라이브러리 크레이트를 사용하는 방법에 대한 예제이다.
+    ```rust
+    use aggregator::{Summary, Tweet};
+
+    fn main() {
+        let tweet = Tweet {
+            username: String::from("horse_ebooks"),
+            content: String::from(
+                "of course, as you probably already know, people",
+            ),
+            reply: false,
+            retweet: false,
+        };
+
+        println!("1 new tweet: {}", tweet.summarize());
+    }
+
+    // 다음을 출력함
+    // 1 new tweet: horse_ebooks: of course, as you probably already know, people
+    ```
+
+* 기본 구현
+  - 타입에 트레이트를 구현할 때마다 모든 메서드를 구현할 필요는 없도록 트레이트의 메서드에 기본 동작을 제공할 수 있다.
+  - ```rust
+    pub trait Summary {
+        fn summarize(&self) -> String {
+            String::from("(Read more...)")    // 기본 문자열을 명시함
+        }
+    }
+    ```
+  - `NewsArticle` 인스턴스에 기본 구현을 하려면 `impl Summary for NewsArticle {}`처럼 비어 있는 `impl` 블록을 명시한다.
+  - `NewsArticle`에 `summarize` 메서드를 직접 정의하지 않았지만, `NewsArticle`은 `Summary` 트레이트를 구현하도록 지정되어 있으며, `Summary` 트레이트는 `summarize` 메서드의 기본 구현을 제공한다.
+  - ```rust
+    let article = NewsArticle {
+        headline: String::from("Penguins win the Stanley Cup Championship!"),
+        location: String::from("Pittsburgh, PA, USA"),
+        author: String::from("Iceburgh"),
+        content: String::from(
+            "The Pittsburgh Penguins once again are the best \
+             hockey team in the NHL.",
+        ),
+    };
+
+    println!("New article available! {}", article.summarize());    // 출력: New article available! (Read more...)
+    ```
+
+* 파라미터로서의 트레이트
+
+...
+
+### 라이프타임으로 참조자의 유효성 검증하기
