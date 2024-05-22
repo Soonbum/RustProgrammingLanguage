@@ -1456,3 +1456,228 @@ fn main() {
   - 해시어(hasher)는 `BuildHasher` 트레이트를 구현한 타입을 말한다.
 
 ## 오류 처리
+
+* 러스트에서는 오류를 2가지 범주로 나눠 놓았다.
+  - 복구 가능한(recoverable) 오류: "파일을 찾을 수 없음"
+  - 복구 불가능한(unrecoverable) 오류: "배열 끝을 넘어선 위치에 접근"
+
+* 타 언어와 달리 러스트에는 예외 처리 기능이 없음
+  - 대신 복구 가능한 오류를 위한 `Result<T, E>` 타입과 복구 불가능한 오류가 발생했을 때 프로그램을 종료하는 `panic!` 매크로가 있음
+
+### panic!으로 복구 불가능한 오류 처리하기
+
+* 패닉이 일어나는 경우는 2가지가 있다.
+  - 배열 끝 부분을 넘어선 접근과 같이 코드가 패닉을 일으킬 동작을 하는 경우
+  - `panic!` 매크로를 명시적으로 호출하는 경우
+
+* 패닉이 일어나면 실패 메시지를 출력하고, 되감고(unwind), 스택을 청소하고, 종료한다.
+  - 패닉의 원인을 쉽게 추적하기 위해 환경 변수를 통해 호출 스택을 보여주도록 할 수 있다.
+
+* 종료 방식은 2가지가 있다.
+  - 되감기(unwinding): 러스트가 패닉을 발생시킨 각 함수로부터 스택을 거꾸로 훑어가면서 데이터를 청소하는 것
+  - 그만두기(aborting): 데이터 정리 작업 없이 즉각 종료하는 것
+  - 결과 바이너리 크기를 최소화하기 위해 Cargo.toml 파일에서 다음 내용을 추가하면 릴리즈 모드에서 패닉 시 그만두기(aborting) 방식을 쓸 수 있다.
+    ```
+    [profile.release]
+    panic = 'abort'
+    ```
+
+* 패닉 발생시키기
+  - ```rust
+    fn main() {
+        panic!("crash and burn");
+    }
+
+    // thread 'main' panicked at 'crash and burn', src/main.rs:2:5 --> 2번째 줄 5번째 문자에서 패닉 발생
+    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    ```
+
+* panic! 백트레이스 이용하기
+  - ```rust
+    fn main() {
+        let v = vec![1, 2, 3];
+
+        v[99];    // 유효한 범위를 넘어선 인덱스로 벡터에 접근
+    }
+
+    // thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 99', src/main.rs:4:5
+    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace    
+    ```
+  - 백트레이스(backtrace): 어떤 지점에 도달하기까지 호출한 모든 함수의 목록 (환경 변수 RUST_BACKTRACE를 1로 설정하면 백트레이스 내용을 볼 수 있다)
+    * ```
+      $ RUST_BACKTRACE=1 cargo run
+      thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 99', src/main.rs:4:5
+      stack backtrace:
+         0: rust_begin_unwind
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/std/src/panicking.rs:584:5
+         1: core::panicking::panic_fmt
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:142:14
+         2: core::panicking::panic_bounds_check
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:84:5
+         3: <usize as core::slice::index::SliceIndex<[T]>>::index
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:242:10
+         4: core::slice::index::<impl core::ops::index::Index<I> for [T]>::index
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:18:9
+         5: <alloc::vec::Vec<T,A> as core::ops::index::Index<I>>::index
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/alloc/src/vec/mod.rs:2591:9
+         6: panic::main
+                   at ./src/main.rs:4:5
+         7: core::ops::function::FnOnce::call_once
+                   at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/ops/function.rs:248:5
+      note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+      ```
+
+### Result로 복구 가능한 오류 처리하기
+
+* `Result` 열거형은 다음과 같이 2개의 배리언트를 갖고 있다.
+  - ```rust
+    enum Result<T, E> {
+        Ok(T),
+        Err(E),
+    }
+    ```
+  - `T`, `E`는 제네릭 타입 파라미터이다.
+  - `T`는 성공한 경우 `Ok` 배리언트 안에 반환될 값의 타입을 나타내고, `E`는 실패한 경우에 `Err` 배리언트 안에 반환될 오류의 타입을 나타낸다.
+
+* 예제: 파일 열기
+  - ```rust
+    use std::fs::File;
+
+    fn main() {
+        let greeting_file_result = File::open("hello.txt");
+        // Result<T, E> 반환
+        // 성공할 경우, T는 File::open 구현부의 성공 값인 파일 핸들 std::fs::file
+        // 실패할 경우, E는 std::io::Error
+    }
+    ```
+
+* 예제: match 표현식을 사용하여 반환 가능한 Result 배리언트 처리하기
+  - ```rust
+    use std::fs::File;
+
+    fn main() {
+        let greeting_file_result = File::open("hello.txt");
+
+        let greeting_file = match greeting_file_result {
+            Ok(file) => file,
+            Err(error) => panic!("Problem opening the file: {:?}", error),
+        };
+    }
+    ```
+
+* 서로 다른 오류에 대해 매칭하기
+  - ```rust
+    use std::fs::File;
+    use std::io::ErrorKind;
+
+    fn main() {
+        let greeting_file_result = File::open("hello.txt");
+
+        let greeting_file = match greeting_file_result {
+            Ok(file) => file,
+            Err(error) => match error.kind() {
+                // 오류 케이스: 파일을 찾지 못하는 경우
+                ErrorKind::NotFound => match File::create("hello.txt") {    // 파일이 없으면 파일을 생성함
+                    Ok(fc) => fc,
+                    Err(e) => panic!("Problem creating the file: {:?}", e),    // 파일 생성 실패시
+                },
+                // 그 외 오류
+                other_error => {
+                    panic!("Problem opening the file: {:?}", other_error);
+                }
+            },
+        };
+    }
+    ```
+  - unwrap_or_else 메서드와 클로저를 사용하면 match보다 더 간결하게 만들 수 있다.
+    ```rust
+    use std::fs::File;
+    use std::io::ErrorKind;
+
+    fn main() {
+        let greeting_file = File::open("hello.txt").unwrap_or_else(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                File::create("hello.txt").unwrap_or_else(|error| {
+                    panic!("Problem creating the file: {:?}", error);
+                })
+            } else {
+                panic!("Problem opening the file: {:?}", error);
+            }
+        });
+    }
+    ```
+
+* 오류 발생시 패닉을 위한 숏컷: unwrap과 expect
+  - unwrap 메서드는 match 구문과 비슷한 구현을 한 숏컷 메서드이다.
+    * Result 값이 OK 배리언트라면 unwrap은 Ok 내의 값을 반환한다.
+    * Result 값이 Err 배리언트라면 unwrap은 panic! 매크로를 호출한다.
+  - ```rust
+    use std::fs::File;
+
+    fn main() {
+        let greeting_file = File::open("hello.txt").unwrap();    // 파일이 없으면 panic! 호출
+    }
+    ```
+  - expect를 이용하고 좋은 오류 메시지를 제공하면 의도를 전달하면서 패닉의 원인을 쉽게 추적할 수 있게 해준다.
+  - ```rust
+    use std::fs::File;
+
+    fn main() {
+        let greeting_file = File::open("hello.txt")
+            .expect("hello.txt should be included in this project");
+    }
+    ```
+
+* 오류 전파하기
+  - 본 함수에서 오류를 처리하지 않고, 호출하는 코드 쪽으로 오류를 반환하여 그 쪽에서 오류를 처리하도록 할 수도 있다.
+  - ```rust
+    use std::fs::File;
+    use std::io::{self, Read};
+
+    fn read_username_from_file() -> Result<String, io::Error> {
+        let username_file_result = File::open("hello.txt");
+
+        let mut username_file = match username_file_result {
+            Ok(file) => file,           // 성공하면 username_file은 파일 핸들이 됨
+            Err(e) => return Err(e),    // 실패하면 함수를 호출한 쪽으로 오류 값 리턴
+        };
+
+        let mut username = String::new();
+
+        match username_file.read_to_string(&mut username) {
+            Ok(_) => Ok(username),    // 성공하면 username에 있는 파일로부터 읽은 사용자 이름을 Ok로 감싸서 리턴
+            Err(e) => Err(e),         // 실패하면 오류 값 리턴 (마지막 표현식이므로 명시적으로 return을 적을 필요 없음)
+        }
+    }
+    ```
+  - 오류를 전파하기 위한 숏컷: ? (위와 동일하나 ? 연산자를 이용함)
+    ```rust
+    use std::fs::File;
+    use std::io::{self, Read};
+
+    // match 표현식과 달리 ? 연산자는 from 함수를 거친다.
+    // (from 함수는 표준 라이브러리 내의 From 트레이트에 정의되어 있으며, 어떤 값의 타입을 다른 타입으로 변환하는 데 사용함)
+    // ? 연산자가 얻게 되는 오류를 ? 연산자가 사용된 현재 함수의 리턴 타입에 정의된 오류 타입으로 변환함
+    
+    fn read_username_from_file() -> Result<String, io::Error> {
+        let mut username_file = File::open("hello.txt")?;    // OK 또는 Err 값을 리턴함
+        let mut username = String::new();
+        username_file.read_to_string(&mut username)?;    // OK 또는 Err 값을 리턴함
+        Ok(username)
+    }
+    ```
+  - ? 연산자를 사용하면 다음과 같이 더 간결한 코드를 작성할 수 있다. (단, ? 연산자가 적용되는 함수의 리턴 타입이 Result, Option 또는 FromResidual이어야 함)
+    ```rust
+    use std::fs::File;
+    use std::io::{self, Read};
+
+    fn read_username_from_file() -> Result<String, io::Error> {
+        let mut username = String::new();
+
+        File::open("hello.txt")?.read_to_string(&mut username)?;    // 파일 핸들을 받은 후 문자열을 읽어옴
+
+        Ok(username)
+    }
+    ```
+
+## 제네릭 타입, 트레이트, 라이프타임
