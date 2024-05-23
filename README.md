@@ -1913,7 +1913,107 @@ fn main() {
     ```
 
 * 파라미터로서의 트레이트
+  - 다음은 `impl Trait` 문법을 사용하여 `Summary` 트레이트를 구현하는 어떤 타입의 `item` 파라미터에서 `summarize` 메서드를 호출하는 `notify` 함수를 정의하는 예제이다.
+    ```rust
+    pub fn notify(item: &impl Summary) {
+        println!("Breaking news! {}", item.summarize());
+    }
+    ```
+  - `item` 파라미터의 구체적 타입을 명시하는 대신 `impl` 키워드와 트레이트 이름을 명시함
+  - 이 파라미터에는 지정된 트레이트를 구현하는 타입이라면 어떤 타입이든 전달 받을 수 있다.
+  - `notify` 본문 내에서는 `item`에서 `summarize`와 같은 `Summary` 트레이트의 모든 메서드를 호출할 수 있다.
+  - `notify`는 `NewsArticle` 인스턴스로도, `Tweet` 인스턴스로도 호출할 수 있다.
+  - 만약 `Summary` 트레이트를 구현하지 않는 `String`, `i32` 등의 타입으로 `notify` 함수를 호출하는 코드를 작성한다면 컴파일 오류가 발생한다.
 
-...
+* 트레이트 바운드 문법
+  - ```rust
+    pub fn notify<T: Summary>(item: &T) {
+        println!("Breaking news! {}", item.summarize());
+    }
+    ```
+  - 트레이트 바운드는 `<>` 안의 제네릭 타입 파라미터 선언에 붙은 `:` 뒤에 위치한다.
+  - `impl Trait` 문법이 단순한 상황에서는 편리하고 코드를 더 간결하게 만들어 주는 반면, 트레이트 바운드 문법은 더 복잡한 상황을 표현할 수 있다.
+  - 예를 들어, `Summary`를 구현하는 두 파라미터를 전달 받는 함수를 표현할 때, `impl Trait` 문법으로 표현하면 다음과 같다.
+    ```rust
+    pub fn notify(item1: &impl Summary, item2: &impl Summary) {
+    ```
+  - 만약 `item1`과 `item2`가 같은 타입으로 강제되어야 한다면 다음과 같이 트레이트 바운드를 사용해야 한다.
+    ```rust
+    pub fn notify<T: Summary>(item1: &T, item2: &T) {
+    ```
+
+* `+` 구문으로 트레이트 바운드를 여럿 지정하기
+  - ```rust
+    pub fn notify(item: &(impl Summary + Display)) {
+    ```
+  - 제네릭 타입의 트레이트 바운드의 경우 다음과 같다.
+    ```rust
+    pub fn notify<T: Summary + Display>(item: &T) {
+    ```
+
+* where 조항으로 트레이트 바운드 정리하기
+  - 제네릭마다 트레이트 바운드를 갖게 되면, 여러 제네릭 타입 파라미터를 사용하는 함수는 함수명과 파라미터 사이에 너무 많은 트레이트 바운드 정로를 담게 될 가능성이 있다.
+  - 가독성이 떨어지는 것을 막기 위해 트레이트 바운드를 함수 시그니처 뒤의 where 조항에 명시하는 대안이 있다.
+  - where 조항 적용 전
+    ```rust
+    fn some_function<T: Display + Clone, U: Clone + Debug>(t: &T, u: &U) -> i32 {
+    ```
+  - where 조항 적용 후
+    ```rust
+    fn some_function<T, U>(t: &T, u: &U) -> i32
+    where
+        T: Display + Clone,
+        U: Clone + Debug,
+    {
+    ```
+
+* 트레이트를 구현하는 타입을 반환하기
+  - 다음과 같이 `impl Trait` 문법을 리턴 타입 위치에 써서 어떤 트레이트를 구현한 타입의 값을 리턴하는 데 사용할 수 있다.
+    ```rust
+    fn returns_summarizable() -> impl Summary {
+        Tweet {
+            username: String::from("horse_ebooks"),
+            content: String::from(
+                "of course, as you probably already know, people",
+            ),
+            reply: false,
+            retweet: false,
+        }
+    }
+    ```
+
+* 트레이트 바운드를 사용해 조건부로 메서드 구현하기
+  - 제네릭 타입 파라미터를 사용하는 `impl` 블록에 트레이트 바운드를 이용하면, 지정된 트레이트를 구현하는 타입에 대해서만 메서드를 구현할 수도 있다.
+    ```rust
+    use std::fmt::Display;
+
+    struct Pair<T> {
+        x: T,
+        y: T,
+    }
+
+    impl<T> Pair<T> {
+        fn new(x: T, y: T) -> Self {
+            Self { x, y }
+        }
+    }
+
+    impl<T: Display + PartialOrd> Pair<T> {
+        fn cmp_display(&self) {
+            if self.x >= self.y {
+                println!("The largest member is x = {}", self.x);
+            } else {
+                println!("The largest member is y = {}", self.y);
+            }
+        }
+    }
+    ```
+  - 타입이 특정 트레이트를 구현하는 경우에만 해당 타입에 트레이트를 구현할 수도 있다.
+    ```
+    // Display 트레이트를 구현하는 모든 타입에 ToString 트레이트도 구현함
+    impl<T: Display> ToString for T {
+        // --생략--
+    }
+    ```
 
 ### 라이프타임으로 참조자의 유효성 검증하기
