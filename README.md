@@ -1680,7 +1680,7 @@ fn main() {
     }
     ```
 
-## 제네릭 타입, 트레이트, 라이프타임
+## 제네릭 타입, 트레이트, 라이프타임 (코드 중복성을 줄이기 위한 기법)
 
 ### 제네릭 데이터 타입
 
@@ -2017,3 +2017,207 @@ fn main() {
     ```
 
 ### 라이프타임으로 참조자의 유효성 검증하기
+
+* 라이프타임(lifetime): 어떤 참조자가 필요한 기간 동안 유효함을 보장하도록 한다.
+  - 러스트의 모든 참조자는 라이프타임이라는 참조자의 유효성을 보장하는 범위를 갖는다. (기본적으로 스코프 범위)
+
+* 라이프타임의 주목적: 댕글링 참조 (dangling reference) 방지
+  - `r`의 라이프타임은 `'a`, `x`의 라이프타임은 `'b`이다.
+  - 참조 대상이 참조자보다 오래 살지 못하므로 러스트 컴파일러는 이 소스를 컴파일하지 않는다.
+    ```rust
+    fn main() {
+        let r;                // ---------+-- 'a
+                              //          |
+        {                     //          |
+            let x = 5;        // -+-- 'b  |
+            r = &x;           //  |       |
+        }                     // -+       |
+                              //          |
+        println!("r: {}", r); //          |
+    }                         // ---------+
+    ```
+
+* 함수에서의 제네릭 라이프타임
+  - ```rust
+    fn main() {
+        let string1 = String::from("abcd");
+        let string2 = "xyz";
+
+        let result = longest(string1.as_str(), string2);
+        println!("The longest string is {}", result);
+    }
+
+    // 리턴 타입에 제네릭 라이프타임 파라미터가 필요함
+    // 전달받은 참조자의 구체적인 라이프타임을 알 수 없으므로 컴파일 실패함
+    fn longest(x: &str, y: &str) -> &str {
+        if x.len() > y.len() {
+            x
+        } else {
+            y
+        }
+    }
+    ```
+
+* 라이프타임 명시 문법
+  - 라이프타임 파라미터 이름은 어퍼스트로피(')로 시작해야 하며, 보통은 제네릭 타입처럼 매우 짧은 소문자로 정한다.
+  - ```rust
+    &i32        // 참조자
+    &'a i32     // 명시적인 라이프타임이 있는 참조자
+    &'a mut i32 // 명시적인 라이프타임이 있는 가변 참조자
+    ```
+
+* 함수 시그니처에서 라이프타임 명시하기
+  - ```rust
+    fn main() {
+        let string1 = String::from("abcd");
+        let string2 = "xyz";
+
+        let result = longest(string1.as_str(), string2);
+        println!("The longest string is {}", result);
+    }
+
+    // &'a로 라이프타임 명시: 두 파라미터의 참조자 모두가 유효한 동안에는 반환된 참조자도 유효하다는 의미
+    // 'a에 대응되는 구체적인 라이프타임은 x 스코프와 y 스코프가 겹치는 부분이다. (즉, x 라이프타임과 y 라이프타임 중 더 작은 쪽이 제네릭 라이프타임 'a의 구체적인 라이프타임이 된다)
+    /* 이 함수 시그니처는 러스트에게
+       함수는 두 파라미터를 갖고 둘 다 적어도 라이프타임 'a만큼 살아있는 문자열 슬라이스이며,
+       반환하는 문자열 슬라이스도 라이프타임 'a만큼 살아있다는 정보를 알려준다.
+     */
+    fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+        if x.len() > y.len() {
+            x
+        } else {
+            y
+        }
+    }
+    ```
+
+* 구조체 정의에서 라이프타임 명시하기
+  - ```rust
+    // 이것은 "ImportantExcerpt 인스턴스는 part 필드가 보관하는 참조자의 라이프타임보다 오래 살 수 없다"는 뜻이다.
+    struct ImportantExcerpt<'a> {
+        part: &'a str,
+    }
+
+    fn main() {
+        let novel = String::from("Call me Ishmael. Some years ago...");
+        let first_sentence = novel.split('.').next().expect("Could not find a '.'");
+        let i = ImportantExcerpt {
+            part: first_sentence,
+        };
+    }
+    ```
+
+* 라이프타임 생략
+  - 다음은 파라미터, 리턴 타입이 참조자인데도 라이프타임 명시 없이 컴파일 가능한 함수입니다.
+    ```rust
+    fn first_word(s: &str) -> &str {
+        let bytes = s.as_bytes();
+
+        for (i, &item) in bytes.iter().enumerate() {
+            if item == b' ' {
+                return &s[0..i];
+            }
+        }
+
+        &s[..]
+    }
+
+    fn main() {
+        let my_string = String::from("hello world");
+
+        // first_word works on slices of `String`s
+        let word = first_word(&my_string[..]);
+
+        let my_string_literal = "hello world";
+
+        // first_word works on slices of string literals
+        let word = first_word(&my_string_literal[..]);
+
+        // Because string literals *are* string slices already,
+        // this works too, without the slice syntax!
+        let word = first_word(my_string_literal);
+    }
+    ```
+  - 초기 버전 러스트(1.0 이전)에서는 다음과 같이 함수 시그니처를 작성해야만 했다. (원래 이것이 정석)
+    ```rust
+    fn first_word<'a>(s: &'a str) -> &'a str {
+    ```
+  - 라이프타임 명시가 없으면 컴파일러는
+    * (1) 참조자인 파라미터 각각에게 라이프타임 파라미터를 할당하고,
+    * (2) 입력 라이프타임 파라미터가 하나만 있으면 해당 라이프타임을 모든 출력 라이프타임에 대입하고,
+    * (3) 입력 라이프타임 파라미터가 여러 개 있으면 그 중 하나가 `&self` 또는 `&mut self`라면 `self`의 라이프타임이 모든 출력 라이프타임 파라미터에 대입한다.
+  - 예시) 입력 라이프타임 파라미터가 하나만 있는 경우
+    * 처음에 다음과 같이 입력하면,
+      ```rust
+      fn first_word(s: &str) -> &str {
+      ```
+    * 1번째 규칙 적용: 각각의 파라미터에 라이프타임을 지정한다.
+      ```rust
+      fn first_word<'a>(s: &'a str) -> &str {
+      ```
+    * 2번째 규칙 적용: 입력 라이프타임이 하나밖에 없으므로 출력 라이프타임에 입력 파라미터의 라이프타임을 대입한다.
+      ```rust
+      fn first_word<'a>(s: &'a str) -> &'a str {
+      ```
+
+* 메서드 정의에서 라이프타임 명시하기
+  - 라이프타임을 갖는 메서드를 구조체에 구현하는 문법은 제네릭 타임 파라미터 문법과 같다.
+  - 라이프타임 파라미터의 선언 및 사용 위치는 구조체 필드나 메서드 파라미터 및 리턴 값과 연관이 있느냐 없느냐에 따라 달라진다.
+  - 라이프타임이 구조체 타입의 일부가 되기 때문에, 구조체 필드의 라이프타임 이름은 `impl` 키워드 뒤에 선언한 다음 구조체 이름 뒤에 사용해야 한다.
+  - ```rust
+    impl<'a> ImportantExcerpt<'a> {
+        fn level(&self) -> i32 {
+            3
+        }
+    }
+    ```
+  - ```rust
+    impl<'a> ImportantExcerpt<'a> {
+        fn announce_and_return_part(&self, announcement: &str) -> &str {
+            println!("Attention please: {}", announcement);
+            self.part
+        }
+    }
+    ```
+
+* 정적 라이프타임
+  - `'static` 라이프타임은 해당 참조자가 프로그램의 전체 생애주기 동안 살아 있음을 의미한다.
+  - __모든 문자열 리터럴은 `'static` 라이프타임을 가지며 다음과 같이 명시할 수 있다.__
+  - ```rust
+    let s: &'static str = "I have a static lifetime.";
+    ```
+
+* 제네릭 타입 파라미터, 트레이트 바운드, 라이프타임을 한 곳에 사용해 보기
+  - ```rust
+    fn main() {
+        let string1 = String::from("abcd");
+        let string2 = "xyz";
+
+        let result = longest_with_an_announcement(
+            string1.as_str(),
+            string2,
+            "Today is someone's birthday!",
+        );
+        println!("The longest string is {}", result);
+    }
+
+    use std::fmt::Display;
+
+    fn longest_with_an_announcement<'a, T>(
+        x: &'a str,
+        y: &'a str,
+        ann: T,
+    ) -> &'a str
+    where
+        T: Display,
+    {
+        println!("Announcement! {}", ann);
+        if x.len() > y.len() {
+            x
+        } else {
+            y
+        }
+    }
+    ```
+
+## 자동화 테스트 작성하기
